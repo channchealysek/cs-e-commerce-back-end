@@ -6,7 +6,7 @@
  `[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)`
   
 ## Description 
-The back-end application for e-commerce site whic build with Node.js, Express,dotenv, sequelize and MySQL2.
+The back-end application for e-commerce site which build with Node.js, Express,dotenv, sequelize and MySQL2.
 
 ## Table of Contents
 1. [Installation](#Installation)
