@@ -1,4 +1,4 @@
-# E-commerce Back End
+# cs-e-commerce back-end
 
 ## License 
   
