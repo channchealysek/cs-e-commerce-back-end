@@ -85,12 +85,12 @@ router.delete('/:id', (req, res) => {
   // delete a category by its `id` value
   Category.destroy({
     where: {
-      id: req.params.id
-    }
+      id: req.params.id,
+    },
   })
-    .then(tblCategors => {
-      if (!tblCategors){
-        res.status(404).json({message: 'No category found with this id.'});
+    .then((tblCategors) => {
+      if (!tblCategors) {
+        res.status(404).json({ message: 'No category found with this id.' });
         return;
       }
       res.json(tblCategors);
