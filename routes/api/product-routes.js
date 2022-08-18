@@ -58,126 +58,76 @@ router.get('/:id', async (req, res) => {
 });
 
 // create new product
-router.post('/', async (req, res) => {
+router.post('/', (req, res) => {
+  const arrTagId = [];
   /* req.body should look like this...
     {
       product_name: "Basketball",
       price: 200.00,
       stock: 3,
-      category_id: 4,
       tagIds: [1, 2, 3, 4]
     }
   */
-  try {
-    await Product.create(req.body, {
+  Product.create(req.body)
+    .then((product) => {
+      // if there's product tags, we need to create pairings to bulk create in the ProductTag model
+      if (req.body.tagIds.length) {
+        const productTagIdArr = req.body.tagIds.map((tag_id) => ({
+          product_id: product.id,
+          tag_id,
+        }));
+        return ProductTag.bulkCreate(productTagIdArr);
+      }
+      // if no product tags, just respond
+      return res.status(200).json(product);
     })
-      .then((product) => {
-        if (req.body.tagIds.length) {
-          const productTagIdArr = req.body.tagIds.map((tag_id) => ({
-            product_id: product.id,
-            tag_id,
-          }));
-          // console.log(productTagIdArr);
-          // if (!productTagIdArr) {
-          //   console.log(productTagIdArr);
-          //   const arrTagId = [];
-          //   const tagIdCounts = req.body.tagIds.length;
-          //   for (let i = 0; i < productTagIdArr.length; i++) {
-          //     Tag.findOne({
-          //       where: {
-          //         id: req.body.tagIds[i],
-          //       },
-          //     })
-          //       .then((dbfindOndTag) => {
-          //         if (!dbfindOndTag) {
-          //           arrTagId.push(req.body.tagIds[i]);
-          //           if (i === tagIdCounts - 1) { return res.status(400).json({ message: `No found with tag_id = ${arrTagId}` }); }
-          //         }
-          //       });
-          //   }
-          // }
-          return ProductTag.bulkCreate(productTagIdArr);
-        }
-        // if no product tags, just respond
-        return res.status(200).json(product);
-      })
-      .then((productTagIds) => {
-        if (productTagIds) {
-          Product.findAll({
-            include: [
-              {
-                model: Category,
-                attributes: ['category_name'],
-              },
-              {
-                model: Tag,
-                attributes: ['tag_name'],
-              },
-            ],
-            limit: 1,
-            order: [['id', 'DESC']],
-          })
-            .then((dataProduct) => res.status(200).json(dataProduct));
-        }
-      });
-    return req.body;
-  } catch (err) {
-    return (
+    .then((productTagIds) => {
+      if (productTagIds) {
+        Product.findAll({
+          include: [
+            {
+              model: Category,
+              attributes: ['category_name'],
+            },
+            {
+              model: Tag,
+              attributes: ['tag_name'],
+            },
+          ],
+          limit: 1,
+          order: [['id', 'DESC']],
+        })
+          .then((dataProduct) => res.status(200).json(dataProduct));
+      }
+    })
+    .catch(() => {
       Category.findOne({
         where: {
           id: req.body.category_id,
         },
       })
-        .then((dbfindOneCategoryId) => {
-          if (!dbfindOneCategoryId) {
+        .then((dbfindOneCategeyid) => {
+          if (!dbfindOneCategeyid) {
             res.status(400).json({ message: `No found with category_id = ${req.body.category_id}` });
+          } else {
+            const tagIdCounts = req.body.tagIds.length;
+            for (let i = 0; i < tagIdCounts; i++) {
+              Tag.findOne({
+                where: {
+                  id: req.body.tagIds[i],
+                },
+              })
+                .then((dbfindOndTag) => {
+                  if (!dbfindOndTag) {
+                    arrTagId.push(req.body.tagIds[i]);
+                    if (i === tagIdCounts - 1) { res.status(400).json({ message: `No found with tag_id = ${arrTagId}` }); }
+                  }
+                });
+            }
           }
-        }));
-  }
+        });
+    });
 });
-
-//   Product.create(req.body)
-//     .then((product) => {
-//       // if there's product tags, we need to create pairings to bulk create in the ProductTag model
-//       if (req.body.tagIds.length) {
-//         const productTagIdArr = req.body.tagIds.map((tag_id) => ({
-//           product_id: product.id,
-//           tag_id,
-//         }));
-//         return ProductTag.bulkCreate(productTagIdArr);
-//       }
-//       // if no product tags, just respond
-//       res.status(200).json(product);
-//     })
-//     .then((productTagIds) => res.status(200).json(productTagIds))
-//     .catch((err) => {
-//       Category.findOne({
-//         where: {
-//           id: req.body.category_id,
-//         },
-//       })
-//         .then((dbfindOneCategeyid) => {
-//           if (!dbfindOneCategeyid) {
-//             res.status(400).json({ message: `No found with category_id = ${req.body.category_id}` });
-//           } else {
-//             const tagIdCounts = req.body.tagIds.length;
-//             for (let i = 0; i < tagIdCounts; i++) {
-//               Tag.findOne({
-//                 where: {
-//                   id: req.body.tagIds[i],
-//                 },
-//               })
-//                 .then((dbfindOndTag) => {
-//                   if (!dbfindOndTag) {
-//                     arrTagId.push(req.body.tagIds[i]);
-//                     if (i === tagIdCounts - 1) { res.status(400).json({ message: `No found with tag_id = ${arrTagId}` }); }
-//                   }
-//                 });
-//             }
-//           }
-//         });
-//     });
-
 
 // update product
 router.put('/:id', (req, res) => {
@@ -188,7 +138,7 @@ router.put('/:id', (req, res) => {
       id: req.params.id,
     },
   })
-    .then((product) =>
+    .then(() =>
       // find all associated tags from ProductTag
       ProductTag.findAll({ where: { product_id: req.params.id } }))
     .then((productTags) => {
@@ -212,7 +162,26 @@ router.put('/:id', (req, res) => {
         ProductTag.bulkCreate(newProductTags),
       ]);
     })
-    .then((updatedProductTags) => res.json(updatedProductTags))
+    .then((updatedProductTags) => {
+      if (updatedProductTags) {
+        Product.findOne({
+          where: {
+            id: req.params.id,
+          },
+          include: [
+            {
+              model: Category,
+              attributes: ['category_name'],
+            },
+            {
+              model: Tag,
+              attributes: ['tag_name'],
+            },
+          ],
+        })
+          .then((dataProduct) => res.status(200).json(dataProduct));
+      }
+    })
     .catch(() => {
       Product.findOne({
         where: {
@@ -232,6 +201,21 @@ router.put('/:id', (req, res) => {
               .then((dbfindOneCategeyid) => {
                 if (!dbfindOneCategeyid) {
                   res.status(400).json({ message: `No found with category_id = ${req.body.category_id}` });
+                } else {
+                  const tagIdCounts = req.body.tagIds.length;
+                  for (let i = 0; i < tagIdCounts; i++) {
+                    Tag.findOne({
+                      where: {
+                        id: req.body.tagIds[i],
+                      },
+                    })
+                      .then((dbfindOndTag) => {
+                        if (!dbfindOndTag) {
+                          arrTagId.push(req.body.tagIds[i]);
+                          if (i === tagIdCounts - 1) { res.status(400).json({ message: `No found with tag_id = ${arrTagId}` }); }
+                        }
+                      });
+                  }
                 }
               });
           }
@@ -239,24 +223,20 @@ router.put('/:id', (req, res) => {
     });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   // delete one product by its `id` value
-  Product.destroy({
-    where: {
-      id: req.params.id,
-    },
-  })
-    .then((dbProductData) => {
-      if (!dbProductData) {
-        res.status(404).json({ message: 'No product found with this id' });
-        return;
-      }
-      res.json(dbProductData);
-    })
-    .catch((err) => {
-      // console.log(err);
-      res.status(500).json(err);
+  try {
+    const { id } = req.params;
+    const deleted = await Product.destroy({
+      where: { id },
     });
+    if (deleted) {
+      return res.status(200).send('Product deleted');
+    }
+    return res.status(404).send("Product with the specified ID doesn't exists")
+  } catch (err) {
+    return res.status(500).send(err.message);
+  }
 });
 
 module.exports = router;
